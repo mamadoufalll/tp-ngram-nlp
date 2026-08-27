@@ -6,6 +6,7 @@ TP NLP — Master IA / Data Engineering — ISI
 Ce module regroupe toutes les fonctions du TP.
 Il est importé par le notebook TP_Ngram.ipynb et par mini_modele_langage.py.
 """
+import math
 import random
 import re
 from collections import Counter
@@ -288,3 +289,63 @@ class ModeleNgramme:
         """Retire les marqueurs et recompose une phrase lisible."""
         mots = [t for t in tokens if t not in (DEBUT, FIN)]
         return " ".join(mots)
+
+    # --- PARTIE 6 : probabilité d'une phrase ---------------------------
+
+    def probabilite_phrase(self, phrase, tracer=False, lissage=False):
+        """Calcule P(S) par la règle de la chaîne sous hypothèse bigramme :
+
+            P(S) = P(w1|<s>) * P(w2|w1) * ... * P(</s>|wn)
+
+        phrase peut être une chaîne brute ou une liste de tokens.
+        lissage=True utilise Laplace au lieu du maximum de vraisemblance
+        (méthode définie en Partie 10).
+        """
+        tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
+        proba = 1.0
+
+        if tracer:
+            print(f"P({self.phrase_lisible(tokens)}) =")
+
+        for precedent, mot in zip(tokens, tokens[1:]):
+            p = (self.probabilite_laplace(precedent, mot) if lissage
+                 else self.probabilite_bigramme(precedent, mot))
+            proba *= p
+            if tracer:
+                marque = "  <-- ZERO" if p == 0 else ""
+                print(f"    P({mot:8s} | {precedent:8s}) = {p:.6f}{marque}")
+
+        if tracer:
+            print(f"    {'':>8s}  ---------------------------")
+            print(f"    produit = {proba:.8f}\n")
+        return proba
+
+    def log_probabilite_phrase(self, phrase, lissage=False):
+        """Retourne log2 P(S). Vaut -inf si une probabilité est nulle.
+
+        Travailler en logarithmes transforme le produit en somme et évite
+        le soupassement numérique (underflow) sur les phrases longues.
+        """
+        tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
+        total = 0.0
+        for precedent, mot in zip(tokens, tokens[1:]):
+            p = (self.probabilite_laplace(precedent, mot) if lissage
+                 else self.probabilite_bigramme(precedent, mot))
+            if p == 0:
+                return float("-inf")
+            total += math.log2(p)
+        return total
+
+    def perplexite(self, phrase, lissage=True):
+        """Perplexité = 2^(-log2 P(S) / nombre de transitions).
+
+        Interprétation : nombre moyen de choix équiprobables auxquels le
+        modèle fait face à chaque mot. Plus c'est bas, mieux le modèle
+        prédit la phrase.
+        """
+        tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
+        n = len(tokens) - 1
+        logp = self.log_probabilite_phrase(tokens, lissage=lissage)
+        if logp == float("-inf"):
+            return float("inf")
+        return 2 ** (-logp / n)

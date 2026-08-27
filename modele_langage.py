@@ -349,3 +349,34 @@ class ModeleNgramme:
         if logp == float("-inf"):
             return float("inf")
         return 2 ** (-logp / n)
+    
+    # --- PARTIE 7 : comparaison de phrases -----------------------------
+
+    def comparer_phrases(self, phrase1, phrase2, lissage=False, tracer=True):
+        """Compare deux phrases et désigne la plus probable.
+
+        Retourne un tuple (P(S1), P(S2)).
+        Avec lissage=False, deux phrases peuvent être à égalité à 0.0 :
+        le modèle est alors incapable de trancher.
+        """
+        resultats = []
+        for etiquette, phrase in [("S1", phrase1), ("S2", phrase2)]:
+            p = self.probabilite_phrase(phrase, lissage=lissage)
+            resultats.append(p)
+            if tracer:
+                print(f"{etiquette} = « {phrase} »")
+                self.probabilite_phrase(phrase, tracer=True, lissage=lissage)
+
+        p1, p2 = resultats
+        if tracer:
+            if p1 == p2 == 0:
+                print("VERDICT : égalité à zéro -> le modèle ne peut pas trancher.")
+            elif p1 > p2:
+                rapport = "infini" if p2 == 0 else f"{p1/p2:.1f}x"
+                print(f"VERDICT : S1 est plus probable que S2 ({rapport}).")
+            elif p2 > p1:
+                rapport = "infini" if p1 == 0 else f"{p2/p1:.1f}x"
+                print(f"VERDICT : S2 est plus probable que S1 ({rapport}).")
+            else:
+                print("VERDICT : les deux phrases sont équiprobables.")
+        return p1, p2

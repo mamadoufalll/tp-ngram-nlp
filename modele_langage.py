@@ -12,14 +12,14 @@ import random
 import re
 from collections import Counter
 
-# Marqueurs de debut et de fin de phrase (section 3.1 du TP)
+
 DEBUT = "<s>"
 FIN = "</s>"
 
 
-# =====================================================================
+
 # PARTIE 1 - PRETRAITEMENT
-# =====================================================================
+
 
 def tokeniser(phrase, ajouter_marqueurs=True):
     """Transforme une phrase brute en liste de tokens.
@@ -67,9 +67,9 @@ def statistiques_corpus(corpus):
     }
 
 
-# =====================================================================
+
 # PARTIE 2 - CONSTRUCTION DES N-GRAMMES
-# =====================================================================
+
 
 def construire_ngrammes(corpus, n):
     """Construit les N-grammes d'ordre n et retourne leurs frequences.
@@ -117,9 +117,9 @@ def afficher_ngrammes(compteur, titre="N-grammes", limite=None):
         print(f"{' '.join(ngramme):{largeur}s} {freq:>4d}")
 
 
-# =====================================================================
+
 # PARTIE 3 - MODELE BIGRAMME
-# =====================================================================
+
 
 class ModeleNgramme:
     """Modele de langage N-gramme entraine sur un corpus tokenise.
@@ -139,7 +139,7 @@ class ModeleNgramme:
         self.trigrammes = construire_trigrammes(corpus)
         self.N = sum(self.unigrammes.values())
 
-    # --- comptages -----------------------------------------------------
+    #  comptages 
 
     def compte_unigramme(self, mot):
         """C(mot) : nombre d'occurrences du mot dans le corpus."""
@@ -149,7 +149,7 @@ class ModeleNgramme:
         """C(mot_precedent, mot) : nombre d'occurrences du bigramme."""
         return self.bigrammes[(mot_precedent, mot)]
 
-    # --- probabilites --------------------------------------------------
+    #  probabilites 
 
     def probabilite_bigramme(self, mot_precedent, mot):
         """P(mot | mot_precedent) = C(mot_precedent, mot) / C(mot_precedent)
@@ -187,8 +187,7 @@ class ModeleNgramme:
         return (f"P({mot} | {mot_precedent}) = C({mot_precedent}, {mot}) / C({mot_precedent})"
                 f" = {c_bi}/{c_uni} = {p:.4f}")
 
-    # --- PARTIE 4 : prediction du mot suivant --------------------------
-
+    #  PARTIE 4 : prediction du mot suivant
     def predire_mot_suivant(self, contexte, k=None):
         """Retourne les candidats possibles apres un contexte, tries par
         probabilite decroissante.
@@ -242,8 +241,7 @@ class ModeleNgramme:
         else:
             print(f"    => mot le plus probable : « {meilleur[0]} »\n")
 
-    # --- PARTIE 5 : generation de texte --------------------------------
-
+    #  PARTIE 5 : generation de texte 
     def generer_phrase(self, mode="argmax", longueur_max=20, graine=None,
                        tracer=False):
         """Genere une phrase en partant de <s> jusqu'a </s>.
@@ -292,7 +290,7 @@ class ModeleNgramme:
         mots = [t for t in tokens if t not in (DEBUT, FIN)]
         return " ".join(mots)
 
-    # --- PARTIE 6 : probabilite d'une phrase ---------------------------
+    # PARTIE 6 : probabilite d'une phrase
 
     def probabilite_phrase(self, phrase, tracer=False, lissage=False):
         """Calcule P(S) par la regle de la chaine sous hypothese bigramme :
@@ -353,7 +351,7 @@ class ModeleNgramme:
             return float("inf")
         return 2 ** (-logp / n)
 
-    # --- PARTIE 7 : comparaison de phrases -----------------------------
+    # PARTIE 7 : comparaison de phrases
 
     def comparer_phrases(self, phrase1, phrase2, lissage=False, tracer=True):
         """Compare deux phrases et designe la plus probable.
@@ -384,7 +382,127 @@ class ModeleNgramme:
                 print("VERDICT : les deux phrases sont equiprobables.")
         return p1, p2
 
-    # --- PARTIE 10 : lissage de Laplace --------------------------------
+
+
+# PARTIE 8 - CORRECTION CONTEXTUELLE
+
+CONFUSIONS = [
+    {"cet", "sept"},
+    {"a", "à"},
+]
+
+
+def candidats_confusion(mot, confusions=CONFUSIONS):
+    """Retourne l'ensemble des mots confondables avec `mot` (lui inclus)."""
+    for groupe in confusions:
+        if mot in groupe:
+            return sorted(groupe)
+    return [mot]
+
+
+def score_contextuel(modele, precedent, candidat, suivant):
+    """Score d'un candidat dans son contexte immediat :
+
+        score = P(candidat | precedent) x P(suivant | candidat)
+
+    On utilise les DEUX cotes du mot. Le contexte gauche seul suffit
+    rarement : c'est souvent le mot qui SUIT qui est decisif.
+    """
+    gauche = modele.probabilite_bigramme(precedent, candidat)
+    droite = modele.probabilite_bigramme(candidat, suivant) if suivant else 1.0
+    return gauche * droite
+
+
+def corriger_phrase(modele, phrase, confusions=CONFUSIONS, tracer=True):
+    """Detecte et corrige les confusions contextuelles d'une phrase.
+
+    Pour chaque mot appartenant a un groupe de confusion, evalue tous les
+    candidats dans leur contexte et retient le mieux score.
+    Retourne la liste des tokens corriges.
+    """
+    tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
+    corrige = list(tokens)
+
+    for i in range(1, len(tokens) - 1):
+        mot = tokens[i]
+        candidats = candidats_confusion(mot, confusions)
+        if len(candidats) <= 1:
+            continue
+
+        precedent = corrige[i - 1]
+        suivant = tokens[i + 1] if i + 1 < len(tokens) else None
+
+        scores = {c: score_contextuel(modele, precedent, c, suivant)
+                  for c in candidats}
+        meilleur = max(scores, key=lambda c: (scores[c], c == mot))
+
+        if tracer:
+            print(f"Position {i} : « {mot} »  "
+                  f"(contexte : {precedent} ___ {suivant})")
+            for c in candidats:
+                pg = modele.probabilite_bigramme(precedent, c)
+                pd = modele.probabilite_bigramme(c, suivant) if suivant else 1.0
+                marque = " <-- retenu" if c == meilleur else ""
+                print(f"    {c:6s} : P({c}|{precedent}) = {pg:.4f}"
+                      f"  x  P({suivant}|{c}) = {pd:.4f}"
+                      f"  =  {scores[c]:.4f}{marque}")
+
+        if meilleur != mot:
+            corrige[i] = meilleur
+            if tracer:
+                print(f"    => CORRECTION : « {mot} » remplace par « {meilleur} »\n")
+        elif tracer:
+            print(f"    => aucun changement\n")
+
+    return corrige
+
+
+
+# PARTIE 9 - LE PROBLEME DES COMPTES NULS
+
+
+def bigrammes_nuls(modele, limite=None, exclure_marqueurs=False):
+    """Retourne la liste des bigrammes (w1, w2) jamais observes.
+
+    On parcourt le produit cartesien V x V et on retient les couples de
+    comptage nul. exclure_marqueurs ignore les couples impliquant <s>/</s>.
+    """
+    mots = [m for m in modele.vocabulaire
+            if not (exclure_marqueurs and m in (DEBUT, FIN))]
+    nuls = [(w1, w2) for w1 in mots for w2 in mots
+            if modele.compte_bigramme(w1, w2) == 0]
+    return nuls[:limite] if limite else nuls
+
+
+def couverture_bigrammes(modele):
+    """Statistiques de couverture de la matrice des bigrammes."""
+    V = modele.V
+    possibles = V * V
+    observes = len(modele.bigrammes)
+    return {
+        "V": V,
+        "possibles": possibles,
+        "observes": observes,
+        "nuls": possibles - observes,
+        "taux_couverture": observes / possibles,
+        "hapax": sum(1 for f in modele.bigrammes.values() if f == 1),
+    }
+
+
+def matrice_bigrammes(modele, mots=None):
+    """Affiche la matrice des comptages C(w1, w2) sous forme de tableau."""
+    mots = mots or modele.vocabulaire
+    largeur = max(len(m) for m in mots) + 1
+
+    print(" " * largeur + "".join(f"{m[:6]:>7s}" for m in mots))
+    for w1 in mots:
+        ligne = f"{w1:{largeur}s}"
+        for w2 in mots:
+            c = modele.compte_bigramme(w1, w2)
+            ligne += f"{c if c else '.':>7}"
+        print(ligne)
+
+    #  PARTIE 10 : lissage de Laplace
 
     def probabilite_laplace(self, mot_precedent, mot, alpha=1.0):
         """P_Laplace(mot | mot_precedent) = (C(w1,w2) + a) / (C(w1) + a*V)
@@ -421,7 +539,7 @@ class ModeleNgramme:
                 for mot in self.vocabulaire}
 
 
-    # --- PARTIE 11 : modeles unigramme et trigramme --------------------
+    #  PARTIE 11 : modeles unigramme et trigramme 
 
     def probabilite_unigramme(self, mot, lissage=False, alpha=1.0):
         """P(mot) = C(mot) / N   -- aucun contexte utilise.
@@ -500,127 +618,3 @@ class ModeleNgramme:
             print(f"    {nom} (voit {vu:22s}) : {detail}")
         print()
         return uni, bi, tri
-
-
-# =====================================================================
-# PARTIE 8 - CORRECTION CONTEXTUELLE
-# =====================================================================
-
-# Groupes de mots confondables : homophones ou quasi-homophones qui
-# existent TOUS dans le dictionnaire. Un correcteur lexical ne peut donc
-# pas les detecter ; seul le contexte permet de trancher.
-CONFUSIONS = [
-    {"cet", "sept"},
-    {"a", "à"},
-]
-
-
-def candidats_confusion(mot, confusions=CONFUSIONS):
-    """Retourne l'ensemble des mots confondables avec `mot` (lui inclus)."""
-    for groupe in confusions:
-        if mot in groupe:
-            return sorted(groupe)
-    return [mot]
-
-
-def score_contextuel(modele, precedent, candidat, suivant):
-    """Score d'un candidat dans son contexte immediat :
-
-        score = P(candidat | precedent) x P(suivant | candidat)
-
-    On utilise les DEUX cotes du mot. Le contexte gauche seul suffit
-    rarement : c'est souvent le mot qui SUIT qui est decisif.
-    """
-    gauche = modele.probabilite_bigramme(precedent, candidat)
-    droite = modele.probabilite_bigramme(candidat, suivant) if suivant else 1.0
-    return gauche * droite
-
-
-def corriger_phrase(modele, phrase, confusions=CONFUSIONS, tracer=True):
-    """Detecte et corrige les confusions contextuelles d'une phrase.
-
-    Pour chaque mot appartenant a un groupe de confusion, evalue tous les
-    candidats dans leur contexte et retient le mieux score.
-    Retourne la liste des tokens corriges.
-    """
-    tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
-    corrige = list(tokens)
-
-    for i in range(1, len(tokens) - 1):
-        mot = tokens[i]
-        candidats = candidats_confusion(mot, confusions)
-        if len(candidats) <= 1:
-            continue
-
-        precedent = corrige[i - 1]
-        suivant = tokens[i + 1] if i + 1 < len(tokens) else None
-
-        scores = {c: score_contextuel(modele, precedent, c, suivant)
-                  for c in candidats}
-        meilleur = max(scores, key=lambda c: (scores[c], c == mot))
-
-        if tracer:
-            print(f"Position {i} : « {mot} »  "
-                  f"(contexte : {precedent} ___ {suivant})")
-            for c in candidats:
-                pg = modele.probabilite_bigramme(precedent, c)
-                pd = modele.probabilite_bigramme(c, suivant) if suivant else 1.0
-                marque = " <-- retenu" if c == meilleur else ""
-                print(f"    {c:6s} : P({c}|{precedent}) = {pg:.4f}"
-                      f"  x  P({suivant}|{c}) = {pd:.4f}"
-                      f"  =  {scores[c]:.4f}{marque}")
-
-        if meilleur != mot:
-            corrige[i] = meilleur
-            if tracer:
-                print(f"    => CORRECTION : « {mot} » remplace par « {meilleur} »\n")
-        elif tracer:
-            print(f"    => aucun changement\n")
-
-    return corrige
-
-
-# =====================================================================
-# PARTIE 9 - LE PROBLEME DES COMPTES NULS
-# =====================================================================
-
-def bigrammes_nuls(modele, limite=None, exclure_marqueurs=False):
-    """Retourne la liste des bigrammes (w1, w2) jamais observes.
-
-    On parcourt le produit cartesien V x V et on retient les couples de
-    comptage nul. exclure_marqueurs ignore les couples impliquant <s>/</s>.
-    """
-    mots = [m for m in modele.vocabulaire
-            if not (exclure_marqueurs and m in (DEBUT, FIN))]
-    nuls = [(w1, w2) for w1 in mots for w2 in mots
-            if modele.compte_bigramme(w1, w2) == 0]
-    return nuls[:limite] if limite else nuls
-
-
-def couverture_bigrammes(modele):
-    """Statistiques de couverture de la matrice des bigrammes."""
-    V = modele.V
-    possibles = V * V
-    observes = len(modele.bigrammes)
-    return {
-        "V": V,
-        "possibles": possibles,
-        "observes": observes,
-        "nuls": possibles - observes,
-        "taux_couverture": observes / possibles,
-        "hapax": sum(1 for f in modele.bigrammes.values() if f == 1),
-    }
-
-
-def matrice_bigrammes(modele, mots=None):
-    """Affiche la matrice des comptages C(w1, w2) sous forme de tableau."""
-    mots = mots or modele.vocabulaire
-    largeur = max(len(m) for m in mots) + 1
-
-    print(" " * largeur + "".join(f"{m[:6]:>7s}" for m in mots))
-    for w1 in mots:
-        ligne = f"{w1:{largeur}s}"
-        for w2 in mots:
-            c = modele.compte_bigramme(w1, w2)
-            ligne += f"{c if c else '.':>7}"
-        print(ligne)

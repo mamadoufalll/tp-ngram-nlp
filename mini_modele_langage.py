@@ -39,9 +39,9 @@ MENU = """
 """
 
 
-# ---------------------------------------------------------------------
+
 # Utilitaires d'interface
-# ---------------------------------------------------------------------
+
 
 def demander(invite, defaut=None):
     """Lit une saisie utilisateur, avec valeur par defaut optionnelle."""
@@ -58,9 +58,9 @@ def separateur(titre):
     print(f"\n--- {titre} ---\n")
 
 
-# ---------------------------------------------------------------------
+
 # Options du menu
-# ---------------------------------------------------------------------
+
 
 def option_vocabulaire(modele):
     separateur("VOCABULAIRE")
@@ -170,9 +170,9 @@ def option_comparaison(modele):
         print(f"  -> S1 est {a/b:.0f} fois plus probable que S2")
 
 
-# ---------------------------------------------------------------------
+
 # Boucle principale
-# ---------------------------------------------------------------------
+
 
 def main():
     try:

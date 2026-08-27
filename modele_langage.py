@@ -182,3 +182,59 @@ class ModeleNgramme:
         p = self.probabilite_bigramme(mot_precedent, mot)
         return (f"P({mot} | {mot_precedent}) = C({mot_precedent}, {mot}) / C({mot_precedent})"
                 f" = {c_bi}/{c_uni} = {p:.4f}")
+    
+
+    # --- PARTIE 4 : prédiction du mot suivant --------------------------
+
+    def predire_mot_suivant(self, contexte, k=None):
+        """Retourne les candidats possibles après un contexte, triés par
+        probabilité décroissante.
+
+        Le contexte peut être une chaîne ou une liste de tokens. Comme le
+        modèle est bigramme, SEUL LE DERNIER MOT du contexte est utilisé :
+        c'est exactement l'hypothèse de Markov d'ordre 1.
+
+        Retourne une liste de couples (mot, probabilité), éventuellement
+        tronquée aux k meilleurs. Liste vide si aucun successeur observé.
+        """
+        tokens = contexte.split() if isinstance(contexte, str) else list(contexte)
+        if not tokens:
+            tokens = [DEBUT]
+        dernier = tokens[-1].lower()
+
+        candidats = list(self.successeurs(dernier).items())
+        return candidats[:k] if k else candidats
+
+    def meilleur_mot_suivant(self, contexte):
+        """Retourne le mot le plus probable après le contexte, ou None.
+
+        En cas d'égalité, le tri de successeurs() départage par ordre
+        alphabétique : la prédiction est donc DÉTERMINISTE.
+        """
+        candidats = self.predire_mot_suivant(contexte)
+        return candidats[0][0] if candidats else None
+
+    def afficher_prediction(self, contexte):
+        """Affiche joliment les candidats après un contexte donné."""
+        tokens = contexte.split() if isinstance(contexte, str) else list(contexte)
+        dernier = tokens[-1].lower() if tokens else DEBUT
+        candidats = self.predire_mot_suivant(contexte)
+
+        print(f"Contexte : « {contexte} »   -> mot conditionnant : « {dernier} »"
+              f"  (C = {self.compte_unigramme(dernier)})")
+
+        if not candidats:
+            print("    aucun successeur observé : le modèle ne peut rien prédire\n")
+            return
+
+        for mot, p in candidats:
+            barre = "#" * int(p * 30)
+            print(f"    P({mot:8s}| {dernier:6s}) = {p:.4f}  {barre}")
+
+        meilleur = candidats[0]
+        exaequo = [m for m, p in candidats if p == meilleur[1]]
+        if len(exaequo) > 1:
+            print(f"    => ÉGALITÉ entre {', '.join(exaequo)} "
+                  f"-> choix alphabétique : « {meilleur[0]} »\n")
+        else:
+            print(f"    => mot le plus probable : « {meilleur[0]} »\n")

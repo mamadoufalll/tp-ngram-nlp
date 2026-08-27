@@ -6,7 +6,7 @@ TP NLP — Master IA / Data Engineering — ISI
 Ce module regroupe toutes les fonctions du TP.
 Il est importé par le notebook TP_Ngram.ipynb et par mini_modele_langage.py.
 """
-
+import random
 import re
 from collections import Counter
 
@@ -238,3 +238,53 @@ class ModeleNgramme:
                   f"-> choix alphabétique : « {meilleur[0]} »\n")
         else:
             print(f"    => mot le plus probable : « {meilleur[0]} »\n")
+
+    # --- PARTIE 5 : génération de texte --------------------------------
+
+    def generer_phrase(self, mode="argmax", longueur_max=20, graine=None,
+                       tracer=False):
+        """Génère une phrase en partant de <s> jusqu'à </s>.
+
+        mode = "argmax"      : choisit toujours le mot le plus probable.
+                               Déterministe -> génère toujours la MÊME phrase.
+        mode = "echantillon" : tire le mot au hasard selon la distribution
+                               de probabilité (random.choices). Non
+                               déterministe -> phrases variées.
+
+        longueur_max évite une boucle infinie si </s> n'est jamais atteint.
+        graine fixe le tirage aléatoire pour rendre l'exécution reproductible.
+        tracer affiche le détail de chaque étape.
+        """
+        if graine is not None:
+            random.seed(graine)
+
+        phrase = [DEBUT]
+        while len(phrase) < longueur_max:
+            candidats = self.predire_mot_suivant(phrase[-1])
+            if not candidats:
+                break
+
+            if mode == "argmax":
+                mot = candidats[0][0]
+            elif mode == "echantillon":
+                mots = [m for m, _ in candidats]
+                poids = [p for _, p in candidats]
+                mot = random.choices(mots, weights=poids, k=1)[0]
+            else:
+                raise ValueError("mode doit être 'argmax' ou 'echantillon'")
+
+            if tracer:
+                proba = dict(candidats)[mot]
+                print(f"    {phrase[-1]:8s} -> {mot:8s} (p = {proba:.3f}, "
+                      f"{len(candidats)} candidat(s))")
+
+            phrase.append(mot)
+            if mot == FIN:
+                break
+
+        return phrase
+
+    def phrase_lisible(self, tokens):
+        """Retire les marqueurs et recompose une phrase lisible."""
+        mots = [t for t in tokens if t not in (DEBUT, FIN)]
+        return " ".join(mots)

@@ -21,9 +21,9 @@ CORPUS_PRINCIPAL = "data/corpus.txt"
 CORPUS_CORRECTION = "data/corpus_correction.txt"
 
 MENU = """
-=========================================
+
         MINI MODELE DE LANGAGE
-=========================================
+
  1. Afficher le vocabulaire
  2. Afficher les unigrammes
  3. Afficher les bigrammes
@@ -35,7 +35,7 @@ MENU = """
  9. Corriger une phrase
 10. Comparer deux phrases
 11. Quitter
-=========================================
+
 """
 
 

@@ -380,43 +380,6 @@ class ModeleNgramme:
             else:
                 print("VERDICT : les deux phrases sont équiprobables.")
         return p1, p2
-
-    # --- PARTIE 10 : lissage de Laplace --------------------------------
-
-    def probabilite_laplace(self, mot_precedent, mot, alpha=1.0):
-        """P_Laplace(mot | mot_precedent) = (C(w1,w2) + a) / (C(w1) + a*V)
-
-        On ajoute a à chaque numérateur (add-one si a = 1) et a*V au
-        dénominateur pour que la distribution somme toujours à 1.
-        Aucune probabilité n'est jamais nulle.
-        """
-        num = self.compte_bigramme(mot_precedent, mot) + alpha
-        den = self.compte_unigramme(mot_precedent) + alpha * self.V
-        return num / den
-
-    def detail_laplace(self, mot_precedent, mot, alpha=1.0):
-        """Chaîne explicitant le calcul lissé, pour l'affichage."""
-        c_bi = self.compte_bigramme(mot_precedent, mot)
-        c_uni = self.compte_unigramme(mot_precedent)
-        p = self.probabilite_laplace(mot_precedent, mot, alpha)
-        return (f"P_Laplace({mot} | {mot_precedent}) = "
-                f"({c_bi} + {alpha:g}) / ({c_uni} + {alpha:g}x{self.V}) = "
-                f"{p:.6f}")
-
-    def compte_reconstitue(self, mot_precedent, mot, alpha=1.0):
-        """Comptage effectif après lissage : C*(w1,w2) = P_Laplace x C(w1).
-
-        Permet de visualiser combien d'occurrences le lissage a
-        RETIRÉES aux bigrammes observés pour les donner aux autres.
-        """
-        return self.probabilite_laplace(mot_precedent, mot, alpha) * \
-            self.compte_unigramme(mot_precedent)
-
-    def distribution_laplace(self, mot_precedent, alpha=1.0):
-        """Distribution lissée complète sur TOUT le vocabulaire."""
-        return {mot: self.probabilite_laplace(mot_precedent, mot, alpha)
-                for mot in self.vocabulaire}
-
     
 # =====================================================================
 # PARTIE 8 — CORRECTION CONTEXTUELLE
@@ -540,3 +503,38 @@ def matrice_bigrammes(modele, mots=None):
         print(ligne)
 
     
+    # --- PARTIE 10 : lissage de Laplace --------------------------------
+
+    def probabilite_laplace(self, mot_precedent, mot, alpha=1.0):
+        """P_Laplace(mot | mot_precedent) = (C(w1,w2) + a) / (C(w1) + a*V)
+
+        On ajoute a à chaque numérateur (add-one si a = 1) et a*V au
+        dénominateur pour que la distribution somme toujours à 1.
+        Aucune probabilité n'est jamais nulle.
+        """
+        num = self.compte_bigramme(mot_precedent, mot) + alpha
+        den = self.compte_unigramme(mot_precedent) + alpha * self.V
+        return num / den
+
+    def detail_laplace(self, mot_precedent, mot, alpha=1.0):
+        """Chaîne explicitant le calcul lissé, pour l'affichage."""
+        c_bi = self.compte_bigramme(mot_precedent, mot)
+        c_uni = self.compte_unigramme(mot_precedent)
+        p = self.probabilite_laplace(mot_precedent, mot, alpha)
+        return (f"P_Laplace({mot} | {mot_precedent}) = "
+                f"({c_bi} + {alpha:g}) / ({c_uni} + {alpha:g}x{self.V}) = "
+                f"{p:.6f}")
+
+    def compte_reconstitue(self, mot_precedent, mot, alpha=1.0):
+        """Comptage effectif après lissage : C*(w1,w2) = P_Laplace x C(w1).
+
+        Permet de visualiser combien d'occurrences le lissage a
+        RETIRÉES aux bigrammes observés pour les donner aux autres.
+        """
+        return self.probabilite_laplace(mot_precedent, mot, alpha) * \
+            self.compte_unigramme(mot_precedent)
+
+    def distribution_laplace(self, mot_precedent, alpha=1.0):
+        """Distribution lissée complète sur TOUT le vocabulaire."""
+        return {mot: self.probabilite_laplace(mot_precedent, mot, alpha)
+                for mot in self.vocabulaire}

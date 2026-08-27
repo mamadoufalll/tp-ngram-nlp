@@ -63,3 +63,52 @@ def statistiques_corpus(corpus):
         "taille_vocabulaire": len(vocabulaire),
         "frequences": Counter(tokens),
     }
+
+# =====================================================================
+# PARTIE 2 — CONSTRUCTION DES N-GRAMMES
+# =====================================================================
+
+def construire_ngrammes(corpus, n):
+    """Construit les N-grammes d'ordre n et retourne leurs fréquences.
+
+    Les N-grammes ne traversent JAMAIS une frontière de phrase : ils sont
+    construits phrase par phrase. Le dernier token d'une phrase et le premier
+    de la suivante n'ont aucun lien linguistique.
+
+    Retourne un Counter dont les clés sont des tuples de n tokens.
+    Pour n = 1, les clés sont des tuples à un élément : ('le',).
+    """
+    compteur = Counter()
+    for phrase in corpus:
+        for i in range(len(phrase) - n + 1):
+            compteur[tuple(phrase[i:i + n])] += 1
+    return compteur
+
+
+def construire_unigrammes(corpus):
+    """Fréquences des unigrammes."""
+    return construire_ngrammes(corpus, 1)
+
+
+def construire_bigrammes(corpus):
+    """Fréquences des bigrammes."""
+    return construire_ngrammes(corpus, 2)
+
+
+def construire_trigrammes(corpus):
+    """Fréquences des trigrammes."""
+    return construire_ngrammes(corpus, 3)
+
+
+def afficher_ngrammes(compteur, titre="N-grammes", limite=None):
+    """Affiche un tableau lisible des N-grammes triés par fréquence
+    décroissante, puis par ordre alphabétique."""
+    items = sorted(compteur.items(), key=lambda kv: (-kv[1], kv[0]))
+    if limite:
+        items = items[:limite]
+    largeur = max(len(" ".join(ng)) for ng in compteur) + 2
+    print(f"{titre} — {len(compteur)} distincts, {sum(compteur.values())} occurrences\n")
+    print(f"{'N-gramme':{largeur}s} {'freq':>4s}")
+    print("-" * (largeur + 5))
+    for ngramme, freq in items:
+        print(f"{' '.join(ngramme):{largeur}s} {freq:>4d}")

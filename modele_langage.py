@@ -380,3 +380,79 @@ class ModeleNgramme:
             else:
                 print("VERDICT : les deux phrases sont équiprobables.")
         return p1, p2
+    
+# =====================================================================
+# PARTIE 8 — CORRECTION CONTEXTUELLE
+# =====================================================================
+
+# Groupes de mots confondables : homophones ou quasi-homophones qui
+# existent TOUS dans le dictionnaire. Un correcteur lexical ne peut donc
+# pas les détecter ; seul le contexte permet de trancher.
+CONFUSIONS = [
+    {"cet", "sept"},
+    {"a", "à"},
+]
+
+
+def candidats_confusion(mot, confusions=CONFUSIONS):
+    """Retourne l'ensemble des mots confondables avec `mot` (lui inclus)."""
+    for groupe in confusions:
+        if mot in groupe:
+            return sorted(groupe)
+    return [mot]
+
+
+def score_contextuel(modele, precedent, candidat, suivant):
+    """Score d'un candidat dans son contexte immédiat :
+
+        score = P(candidat | precedent) x P(suivant | candidat)
+
+    On utilise les DEUX côtés du mot. Le contexte gauche seul suffit
+    rarement : c'est souvent le mot qui SUIT qui est décisif.
+    """
+    gauche = modele.probabilite_bigramme(precedent, candidat)
+    droite = modele.probabilite_bigramme(candidat, suivant) if suivant else 1.0
+    return gauche * droite
+
+
+def corriger_phrase(modele, phrase, confusions=CONFUSIONS, tracer=True):
+    """Détecte et corrige les confusions contextuelles d'une phrase.
+
+    Pour chaque mot appartenant à un groupe de confusion, évalue tous les
+    candidats dans leur contexte et retient le mieux scoré.
+    """
+    tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
+    corrige = list(tokens)
+
+    for i in range(1, len(tokens) - 1):
+        mot = tokens[i]
+        candidats = candidats_confusion(mot, confusions)
+        if len(candidats) <= 1:
+            continue
+
+        precedent = corrige[i - 1]
+        suivant = tokens[i + 1] if i + 1 < len(tokens) else None
+
+        scores = {c: score_contextuel(modele, precedent, c, suivant)
+                  for c in candidats}
+        meilleur = max(scores, key=lambda c: (scores[c], c == mot))
+
+        if tracer:
+            print(f"Position {i} : « {mot} »  "
+                  f"(contexte : {precedent} ___ {suivant})")
+            for c in candidats:
+                pg = modele.probabilite_bigramme(precedent, c)
+                pd = modele.probabilite_bigramme(c, suivant) if suivant else 1.0
+                marque = " <-- retenu" if c == meilleur else ""
+                print(f"    {c:6s} : P({c}|{precedent}) = {pg:.4f}"
+                      f"  x  P({suivant}|{c}) = {pd:.4f}"
+                      f"  =  {scores[c]:.4f}{marque}")
+
+        if meilleur != mot:
+            corrige[i] = meilleur
+            if tracer:
+                print(f"    => CORRECTION : « {mot} » remplacé par « {meilleur} »\n")
+        elif tracer:
+            print(f"    => aucun changement\n")
+
+    return corrige

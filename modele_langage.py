@@ -112,3 +112,73 @@ def afficher_ngrammes(compteur, titre="N-grammes", limite=None):
     print("-" * (largeur + 5))
     for ngramme, freq in items:
         print(f"{' '.join(ngramme):{largeur}s} {freq:>4d}")
+
+# =====================================================================
+# PARTIE 3 — MODÈLE BIGRAMME
+# =====================================================================
+
+class ModeleNgramme:
+    """Modèle de langage N-gramme entraîné sur un corpus tokenisé.
+
+    Regroupe le corpus, le vocabulaire et les comptages d'unigrammes,
+    bigrammes et trigrammes dans un seul objet. Évite les variables
+    globales et permet d'entraîner plusieurs modèles en parallèle
+    (utile en Partie 8, avec le corpus de correction).
+    """
+
+    def __init__(self, corpus):
+        self.corpus = corpus
+        self.vocabulaire = construire_vocabulaire(corpus)
+        self.V = len(self.vocabulaire)
+        self.unigrammes = construire_unigrammes(corpus)
+        self.bigrammes = construire_bigrammes(corpus)
+        self.trigrammes = construire_trigrammes(corpus)
+        self.N = sum(self.unigrammes.values())
+
+    # --- comptages -----------------------------------------------------
+
+    def compte_unigramme(self, mot):
+        """C(mot) : nombre d'occurrences du mot dans le corpus."""
+        return self.unigrammes[(mot,)]
+
+    def compte_bigramme(self, mot_precedent, mot):
+        """C(mot_precedent, mot) : nombre d'occurrences du bigramme."""
+        return self.bigrammes[(mot_precedent, mot)]
+
+    # --- probabilités --------------------------------------------------
+
+    def probabilite_bigramme(self, mot_precedent, mot):
+        """P(mot | mot_precedent) = C(mot_precedent, mot) / C(mot_precedent)
+
+        Estimation par maximum de vraisemblance (MLE).
+        Retourne 0.0 si le mot précédent est absent du corpus, afin
+        d'éviter une division par zéro.
+        """
+        denominateur = self.compte_unigramme(mot_precedent)
+        if denominateur == 0:
+            return 0.0
+        return self.compte_bigramme(mot_precedent, mot) / denominateur
+
+    def successeurs(self, mot_precedent):
+        """Retourne {mot: probabilité} pour tous les mots observés après
+        mot_precedent, triés par probabilité décroissante."""
+        suivants = {
+            bigramme[1]: freq
+            for bigramme, freq in self.bigrammes.items()
+            if bigramme[0] == mot_precedent
+        }
+        total = self.compte_unigramme(mot_precedent)
+        if total == 0:
+            return {}
+        return dict(sorted(
+            ((mot, freq / total) for mot, freq in suivants.items()),
+            key=lambda kv: (-kv[1], kv[0])
+        ))
+
+    def detail_probabilite(self, mot_precedent, mot):
+        """Retourne une chaîne explicitant le calcul, pour l'affichage."""
+        c_bi = self.compte_bigramme(mot_precedent, mot)
+        c_uni = self.compte_unigramme(mot_precedent)
+        p = self.probabilite_bigramme(mot_precedent, mot)
+        return (f"P({mot} | {mot_precedent}) = C({mot_precedent}, {mot}) / C({mot_precedent})"
+                f" = {c_bi}/{c_uni} = {p:.4f}")

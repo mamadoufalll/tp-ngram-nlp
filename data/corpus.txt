@@ -1,0 +1,6 @@
+Le chat mange du poisson.
+Le chat aime le poisson.
+Le chien mange de la viande.
+Le chien aime la viande.
+Le chat joue dans le jardin.
+Le chien joue dans le jardin.

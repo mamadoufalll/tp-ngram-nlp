@@ -1,35 +1,36 @@
 # -*- coding: utf-8 -*-
 """
-Modèle de langage basé sur les N-grammes.
-TP NLP — Master IA / Data Engineering — ISI
+Modele de langage base sur les N-grammes.
+TP NLP - Master IA / Data Engineering - ISI
 
 Ce module regroupe toutes les fonctions du TP.
-Il est importé par le notebook TP_Ngram.ipynb et par mini_modele_langage.py.
+Il est importe par le notebook TP_Ngram.ipynb et par mini_modele_langage.py.
 """
+
 import math
 import random
 import re
 from collections import Counter
 
-# Marqueurs de début et de fin de phrase (section 3.1 du TP)
+# Marqueurs de debut et de fin de phrase (section 3.1 du TP)
 DEBUT = "<s>"
 FIN = "</s>"
 
 
 # =====================================================================
-# PARTIE 1 — PRÉTRAITEMENT
+# PARTIE 1 - PRETRAITEMENT
 # =====================================================================
 
 def tokeniser(phrase, ajouter_marqueurs=True):
     """Transforme une phrase brute en liste de tokens.
 
-    Étapes : minuscules -> suppression ponctuation -> découpage -> marqueurs.
+    Etapes : minuscules -> suppression ponctuation -> decoupage -> marqueurs.
 
     >>> tokeniser("Le chat mange du poisson.")
     ['<s>', 'le', 'chat', 'mange', 'du', 'poisson', '</s>']
     """
     phrase = phrase.lower()
-    phrase = re.sub(r"[^a-zàâäéèêëîïôöùûüç'\s]", " ", phrase)
+    phrase = re.sub(r"[^a-z\u00e0\u00e2\u00e4\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f6\u00f9\u00fb\u00fc\u00e7'\s]", " ", phrase)
     tokens = phrase.split()
     if ajouter_marqueurs:
         tokens = [DEBUT] + tokens + [FIN]
@@ -38,14 +39,14 @@ def tokeniser(phrase, ajouter_marqueurs=True):
 
 def charger_corpus(chemin):
     """Lit un fichier texte (une phrase par ligne) et retourne une liste
-    de phrases tokenisées (liste de listes)."""
+    de phrases tokenisees (liste de listes)."""
     with open(chemin, "r", encoding="utf-8") as f:
         lignes = f.read().strip().split("\n")
     return [tokeniser(ligne) for ligne in lignes if ligne.strip()]
 
 
 def construire_vocabulaire(corpus):
-    """Retourne la liste triée des mots distincts (types) du corpus."""
+    """Retourne la liste triee des mots distincts (types) du corpus."""
     return sorted({token for phrase in corpus for token in phrase})
 
 
@@ -65,19 +66,20 @@ def statistiques_corpus(corpus):
         "frequences": Counter(tokens),
     }
 
+
 # =====================================================================
-# PARTIE 2 — CONSTRUCTION DES N-GRAMMES
+# PARTIE 2 - CONSTRUCTION DES N-GRAMMES
 # =====================================================================
 
 def construire_ngrammes(corpus, n):
-    """Construit les N-grammes d'ordre n et retourne leurs fréquences.
+    """Construit les N-grammes d'ordre n et retourne leurs frequences.
 
-    Les N-grammes ne traversent JAMAIS une frontière de phrase : ils sont
+    Les N-grammes ne traversent JAMAIS une frontiere de phrase : ils sont
     construits phrase par phrase. Le dernier token d'une phrase et le premier
     de la suivante n'ont aucun lien linguistique.
 
-    Retourne un Counter dont les clés sont des tuples de n tokens.
-    Pour n = 1, les clés sont des tuples à un élément : ('le',).
+    Retourne un Counter dont les cles sont des tuples de n tokens.
+    Pour n = 1, les cles sont des tuples a un element : ('le',).
     """
     compteur = Counter()
     for phrase in corpus:
@@ -87,43 +89,44 @@ def construire_ngrammes(corpus, n):
 
 
 def construire_unigrammes(corpus):
-    """Fréquences des unigrammes."""
+    """Frequences des unigrammes."""
     return construire_ngrammes(corpus, 1)
 
 
 def construire_bigrammes(corpus):
-    """Fréquences des bigrammes."""
+    """Frequences des bigrammes."""
     return construire_ngrammes(corpus, 2)
 
 
 def construire_trigrammes(corpus):
-    """Fréquences des trigrammes."""
+    """Frequences des trigrammes."""
     return construire_ngrammes(corpus, 3)
 
 
 def afficher_ngrammes(compteur, titre="N-grammes", limite=None):
-    """Affiche un tableau lisible des N-grammes triés par fréquence
-    décroissante, puis par ordre alphabétique."""
+    """Affiche un tableau lisible des N-grammes tries par frequence
+    decroissante, puis par ordre alphabetique."""
     items = sorted(compteur.items(), key=lambda kv: (-kv[1], kv[0]))
     if limite:
         items = items[:limite]
     largeur = max(len(" ".join(ng)) for ng in compteur) + 2
-    print(f"{titre} — {len(compteur)} distincts, {sum(compteur.values())} occurrences\n")
+    print(f"{titre} - {len(compteur)} distincts, {sum(compteur.values())} occurrences\n")
     print(f"{'N-gramme':{largeur}s} {'freq':>4s}")
     print("-" * (largeur + 5))
     for ngramme, freq in items:
         print(f"{' '.join(ngramme):{largeur}s} {freq:>4d}")
 
+
 # =====================================================================
-# PARTIE 3 — MODÈLE BIGRAMME
+# PARTIE 3 - MODELE BIGRAMME
 # =====================================================================
 
 class ModeleNgramme:
-    """Modèle de langage N-gramme entraîné sur un corpus tokenisé.
+    """Modele de langage N-gramme entraine sur un corpus tokenise.
 
     Regroupe le corpus, le vocabulaire et les comptages d'unigrammes,
-    bigrammes et trigrammes dans un seul objet. Évite les variables
-    globales et permet d'entraîner plusieurs modèles en parallèle
+    bigrammes et trigrammes dans un seul objet. Evite les variables
+    globales et permet d'entrainer plusieurs modeles en parallele
     (utile en Partie 8, avec le corpus de correction).
     """
 
@@ -146,14 +149,14 @@ class ModeleNgramme:
         """C(mot_precedent, mot) : nombre d'occurrences du bigramme."""
         return self.bigrammes[(mot_precedent, mot)]
 
-    # --- probabilités --------------------------------------------------
+    # --- probabilites --------------------------------------------------
 
     def probabilite_bigramme(self, mot_precedent, mot):
         """P(mot | mot_precedent) = C(mot_precedent, mot) / C(mot_precedent)
 
         Estimation par maximum de vraisemblance (MLE).
-        Retourne 0.0 si le mot précédent est absent du corpus, afin
-        d'éviter une division par zéro.
+        Retourne 0.0 si le mot precedent est absent du corpus, afin
+        d'eviter une division par zero.
         """
         denominateur = self.compte_unigramme(mot_precedent)
         if denominateur == 0:
@@ -161,8 +164,8 @@ class ModeleNgramme:
         return self.compte_bigramme(mot_precedent, mot) / denominateur
 
     def successeurs(self, mot_precedent):
-        """Retourne {mot: probabilité} pour tous les mots observés après
-        mot_precedent, triés par probabilité décroissante."""
+        """Retourne {mot: probabilite} pour tous les mots observes apres
+        mot_precedent, tries par probabilite decroissante."""
         suivants = {
             bigramme[1]: freq
             for bigramme, freq in self.bigrammes.items()
@@ -177,26 +180,25 @@ class ModeleNgramme:
         ))
 
     def detail_probabilite(self, mot_precedent, mot):
-        """Retourne une chaîne explicitant le calcul, pour l'affichage."""
+        """Retourne une chaine explicitant le calcul, pour l'affichage."""
         c_bi = self.compte_bigramme(mot_precedent, mot)
         c_uni = self.compte_unigramme(mot_precedent)
         p = self.probabilite_bigramme(mot_precedent, mot)
         return (f"P({mot} | {mot_precedent}) = C({mot_precedent}, {mot}) / C({mot_precedent})"
                 f" = {c_bi}/{c_uni} = {p:.4f}")
-    
 
-    # --- PARTIE 4 : prédiction du mot suivant --------------------------
+    # --- PARTIE 4 : prediction du mot suivant --------------------------
 
     def predire_mot_suivant(self, contexte, k=None):
-        """Retourne les candidats possibles après un contexte, triés par
-        probabilité décroissante.
+        """Retourne les candidats possibles apres un contexte, tries par
+        probabilite decroissante.
 
-        Le contexte peut être une chaîne ou une liste de tokens. Comme le
-        modèle est bigramme, SEUL LE DERNIER MOT du contexte est utilisé :
-        c'est exactement l'hypothèse de Markov d'ordre 1.
+        Le contexte peut etre une chaine ou une liste de tokens. Comme le
+        modele est bigramme, SEUL LE DERNIER MOT du contexte est utilise :
+        c'est exactement l'hypothese de Markov d'ordre 1.
 
-        Retourne une liste de couples (mot, probabilité), éventuellement
-        tronquée aux k meilleurs. Liste vide si aucun successeur observé.
+        Retourne une liste de couples (mot, probabilite), eventuellement
+        tronquee aux k meilleurs. Liste vide si aucun successeur observe.
         """
         tokens = contexte.split() if isinstance(contexte, str) else list(contexte)
         if not tokens:
@@ -207,16 +209,16 @@ class ModeleNgramme:
         return candidats[:k] if k else candidats
 
     def meilleur_mot_suivant(self, contexte):
-        """Retourne le mot le plus probable après le contexte, ou None.
+        """Retourne le mot le plus probable apres le contexte, ou None.
 
-        En cas d'égalité, le tri de successeurs() départage par ordre
-        alphabétique : la prédiction est donc DÉTERMINISTE.
+        En cas d'egalite, le tri de successeurs() departage par ordre
+        alphabetique : la prediction est donc DETERMINISTE.
         """
         candidats = self.predire_mot_suivant(contexte)
         return candidats[0][0] if candidats else None
 
     def afficher_prediction(self, contexte):
-        """Affiche joliment les candidats après un contexte donné."""
+        """Affiche joliment les candidats apres un contexte donne."""
         tokens = contexte.split() if isinstance(contexte, str) else list(contexte)
         dernier = tokens[-1].lower() if tokens else DEBUT
         candidats = self.predire_mot_suivant(contexte)
@@ -225,7 +227,7 @@ class ModeleNgramme:
               f"  (C = {self.compte_unigramme(dernier)})")
 
         if not candidats:
-            print("    aucun successeur observé : le modèle ne peut rien prédire\n")
+            print("    aucun successeur observe : le modele ne peut rien predire\n")
             return
 
         for mot, p in candidats:
@@ -235,26 +237,26 @@ class ModeleNgramme:
         meilleur = candidats[0]
         exaequo = [m for m, p in candidats if p == meilleur[1]]
         if len(exaequo) > 1:
-            print(f"    => ÉGALITÉ entre {', '.join(exaequo)} "
-                  f"-> choix alphabétique : « {meilleur[0]} »\n")
+            print(f"    => EGALITE entre {', '.join(exaequo)} "
+                  f"-> choix alphabetique : « {meilleur[0]} »\n")
         else:
             print(f"    => mot le plus probable : « {meilleur[0]} »\n")
 
-    # --- PARTIE 5 : génération de texte --------------------------------
+    # --- PARTIE 5 : generation de texte --------------------------------
 
     def generer_phrase(self, mode="argmax", longueur_max=20, graine=None,
                        tracer=False):
-        """Génère une phrase en partant de <s> jusqu'à </s>.
+        """Genere une phrase en partant de <s> jusqu'a </s>.
 
         mode = "argmax"      : choisit toujours le mot le plus probable.
-                               Déterministe -> génère toujours la MÊME phrase.
+                               Deterministe -> genere toujours la MEME phrase.
         mode = "echantillon" : tire le mot au hasard selon la distribution
-                               de probabilité (random.choices). Non
-                               déterministe -> phrases variées.
+                               de probabilite (random.choices). Non
+                               deterministe -> phrases variees.
 
-        longueur_max évite une boucle infinie si </s> n'est jamais atteint.
-        graine fixe le tirage aléatoire pour rendre l'exécution reproductible.
-        tracer affiche le détail de chaque étape.
+        longueur_max evite une boucle infinie si </s> n'est jamais atteint.
+        graine fixe le tirage aleatoire pour rendre l'execution reproductible.
+        tracer affiche le detail de chaque etape.
         """
         if graine is not None:
             random.seed(graine)
@@ -272,7 +274,7 @@ class ModeleNgramme:
                 poids = [p for _, p in candidats]
                 mot = random.choices(mots, weights=poids, k=1)[0]
             else:
-                raise ValueError("mode doit être 'argmax' ou 'echantillon'")
+                raise ValueError("mode doit etre 'argmax' ou 'echantillon'")
 
             if tracer:
                 proba = dict(candidats)[mot]
@@ -290,16 +292,17 @@ class ModeleNgramme:
         mots = [t for t in tokens if t not in (DEBUT, FIN)]
         return " ".join(mots)
 
-    # --- PARTIE 6 : probabilité d'une phrase ---------------------------
+    # --- PARTIE 6 : probabilite d'une phrase ---------------------------
 
     def probabilite_phrase(self, phrase, tracer=False, lissage=False):
-        """Calcule P(S) par la règle de la chaîne sous hypothèse bigramme :
+        """Calcule P(S) par la regle de la chaine sous hypothese bigramme :
 
             P(S) = P(w1|<s>) * P(w2|w1) * ... * P(</s>|wn)
 
-        phrase peut être une chaîne brute ou une liste de tokens.
+        phrase peut etre une chaine brute ou une liste de tokens.
         lissage=True utilise Laplace au lieu du maximum de vraisemblance
-        (méthode définie en Partie 10).
+        (methode definie en Partie 10).
+        Retourne la probabilite (float).
         """
         tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
         proba = 1.0
@@ -321,10 +324,10 @@ class ModeleNgramme:
         return proba
 
     def log_probabilite_phrase(self, phrase, lissage=False):
-        """Retourne log2 P(S). Vaut -inf si une probabilité est nulle.
+        """Retourne log2 P(S). Vaut -inf si une probabilite est nulle.
 
-        Travailler en logarithmes transforme le produit en somme et évite
-        le soupassement numérique (underflow) sur les phrases longues.
+        Travailler en logarithmes transforme le produit en somme et evite
+        le soupassement numerique (underflow) sur les phrases longues.
         """
         tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
         total = 0.0
@@ -337,11 +340,11 @@ class ModeleNgramme:
         return total
 
     def perplexite(self, phrase, lissage=True):
-        """Perplexité = 2^(-log2 P(S) / nombre de transitions).
+        """Perplexite = 2^(-log2 P(S) / nombre de transitions).
 
-        Interprétation : nombre moyen de choix équiprobables auxquels le
-        modèle fait face à chaque mot. Plus c'est bas, mieux le modèle
-        prédit la phrase.
+        Interpretation : nombre moyen de choix equiprobables auxquels le
+        modele fait face a chaque mot. Plus c'est bas, mieux le modele
+        predit la phrase.
         """
         tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
         n = len(tokens) - 1
@@ -349,15 +352,15 @@ class ModeleNgramme:
         if logp == float("-inf"):
             return float("inf")
         return 2 ** (-logp / n)
-    
+
     # --- PARTIE 7 : comparaison de phrases -----------------------------
 
     def comparer_phrases(self, phrase1, phrase2, lissage=False, tracer=True):
-        """Compare deux phrases et désigne la plus probable.
+        """Compare deux phrases et designe la plus probable.
 
         Retourne un tuple (P(S1), P(S2)).
-        Avec lissage=False, deux phrases peuvent être à égalité à 0.0 :
-        le modèle est alors incapable de trancher.
+        Avec lissage=False, deux phrases peuvent etre a egalite a 0.0 :
+        le modele est alors incapable de trancher.
         """
         resultats = []
         for etiquette, phrase in [("S1", phrase1), ("S2", phrase2)]:
@@ -370,7 +373,7 @@ class ModeleNgramme:
         p1, p2 = resultats
         if tracer:
             if p1 == p2 == 0:
-                print("VERDICT : égalité à zéro -> le modèle ne peut pas trancher.")
+                print("VERDICT : egalite a zero -> le modele ne peut pas trancher.")
             elif p1 > p2:
                 rapport = "infini" if p2 == 0 else f"{p1/p2:.1f}x"
                 print(f"VERDICT : S1 est plus probable que S2 ({rapport}).")
@@ -378,7 +381,7 @@ class ModeleNgramme:
                 rapport = "infini" if p1 == 0 else f"{p2/p1:.1f}x"
                 print(f"VERDICT : S2 est plus probable que S1 ({rapport}).")
             else:
-                print("VERDICT : les deux phrases sont équiprobables.")
+                print("VERDICT : les deux phrases sont equiprobables.")
         return p1, p2
 
     # --- PARTIE 10 : lissage de Laplace --------------------------------
@@ -386,16 +389,16 @@ class ModeleNgramme:
     def probabilite_laplace(self, mot_precedent, mot, alpha=1.0):
         """P_Laplace(mot | mot_precedent) = (C(w1,w2) + a) / (C(w1) + a*V)
 
-        On ajoute a à chaque numérateur (add-one si a = 1) et a*V au
-        dénominateur pour que la distribution somme toujours à 1.
-        Aucune probabilité n'est jamais nulle.
+        On ajoute a a chaque numerateur (add-one si a = 1) et a*V au
+        denominateur pour que la distribution somme toujours a 1.
+        Aucune probabilite n'est jamais nulle.
         """
         num = self.compte_bigramme(mot_precedent, mot) + alpha
         den = self.compte_unigramme(mot_precedent) + alpha * self.V
         return num / den
 
     def detail_laplace(self, mot_precedent, mot, alpha=1.0):
-        """Chaîne explicitant le calcul lissé, pour l'affichage."""
+        """Chaine explicitant le calcul lisse, pour l'affichage."""
         c_bi = self.compte_bigramme(mot_precedent, mot)
         c_uni = self.compte_unigramme(mot_precedent)
         p = self.probabilite_laplace(mot_precedent, mot, alpha)
@@ -404,27 +407,108 @@ class ModeleNgramme:
                 f"{p:.6f}")
 
     def compte_reconstitue(self, mot_precedent, mot, alpha=1.0):
-        """Comptage effectif après lissage : C*(w1,w2) = P_Laplace x C(w1).
+        """Comptage effectif apres lissage : C*(w1,w2) = P_Laplace x C(w1).
 
         Permet de visualiser combien d'occurrences le lissage a
-        RETIRÉES aux bigrammes observés pour les donner aux autres.
+        RETIREES aux bigrammes observes pour les donner aux autres.
         """
         return self.probabilite_laplace(mot_precedent, mot, alpha) * \
             self.compte_unigramme(mot_precedent)
 
     def distribution_laplace(self, mot_precedent, alpha=1.0):
-        """Distribution lissée complète sur TOUT le vocabulaire."""
+        """Distribution lissee complete sur TOUT le vocabulaire."""
         return {mot: self.probabilite_laplace(mot_precedent, mot, alpha)
                 for mot in self.vocabulaire}
 
-    
+
+    # --- PARTIE 11 : modeles unigramme et trigramme --------------------
+
+    def probabilite_unigramme(self, mot, lissage=False, alpha=1.0):
+        """P(mot) = C(mot) / N   -- aucun contexte utilise.
+
+        Le modele unigramme ignore totalement les mots precedents :
+        il ne modelise que la frequence brute de chaque mot.
+        """
+        if lissage:
+            return (self.compte_unigramme(mot) + alpha) / (self.N + alpha * self.V)
+        return self.compte_unigramme(mot) / self.N if self.N else 0.0
+
+    def compte_trigramme(self, w1, w2, w3):
+        """C(w1, w2, w3) : occurrences du trigramme."""
+        return self.trigrammes[(w1, w2, w3)]
+
+    def probabilite_trigramme(self, w1, w2, w3, lissage=False, alpha=1.0):
+        """P(w3 | w1, w2) = C(w1,w2,w3) / C(w1,w2)
+
+        Le contexte est ici constitue des DEUX mots precedents.
+        Le denominateur est le comptage du BIGRAMME (w1, w2), pas celui
+        d'un unigramme : c'est l'erreur classique sur cette formule.
+        """
+        num = self.compte_trigramme(w1, w2, w3)
+        den = self.compte_bigramme(w1, w2)
+        if lissage:
+            return (num + alpha) / (den + alpha * self.V)
+        return num / den if den else 0.0
+
+    def predire_unigramme(self, k=5):
+        """Les k mots les plus frequents, sans aucun contexte."""
+        total = self.N
+        candidats = sorted(
+            ((mot[0], freq / total) for mot, freq in self.unigrammes.items()),
+            key=lambda kv: (-kv[1], kv[0]))
+        return candidats[:k]
+
+    def predire_trigramme(self, contexte, k=None):
+        """Predit le mot suivant a partir des DEUX derniers mots du contexte.
+
+        Retourne une liste vide si le bigramme de contexte n'a jamais ete
+        observe : le modele trigramme est alors muet.
+        """
+        tokens = contexte.split() if isinstance(contexte, str) else list(contexte)
+        if len(tokens) < 2:
+            tokens = [DEBUT] + tokens
+        w1, w2 = tokens[-2].lower(), tokens[-1].lower()
+
+        den = self.compte_bigramme(w1, w2)
+        if den == 0:
+            return []
+
+        candidats = sorted(
+            ((tri[2], freq / den) for tri, freq in self.trigrammes.items()
+             if tri[0] == w1 and tri[1] == w2),
+            key=lambda kv: (-kv[1], kv[0]))
+        return candidats[:k] if k else candidats
+
+    def comparer_modeles(self, contexte, k=3):
+        """Compare les predictions des trois modeles pour un meme contexte."""
+        tokens = contexte.split() if isinstance(contexte, str) else list(contexte)
+
+        uni = self.predire_unigramme(k)
+        bi = self.predire_mot_suivant(contexte, k)
+        tri = self.predire_trigramme(contexte, k)
+
+        print(f"Contexte : « {contexte} »")
+        for nom, candidats, vu in [
+                ("unigramme", uni, "aucun contexte"),
+                ("bigramme ", bi, f"« {tokens[-1]} »"),
+                ("trigramme", tri, f"« {' '.join(tokens[-2:])} »" if len(tokens) >= 2
+                 else f"« {DEBUT} {tokens[-1]} »")]:
+            if candidats:
+                detail = "  ".join(f"{m} ({p:.3f})" for m, p in candidats)
+            else:
+                detail = "AUCUNE PREDICTION (contexte jamais observe)"
+            print(f"    {nom} (voit {vu:22s}) : {detail}")
+        print()
+        return uni, bi, tri
+
+
 # =====================================================================
-# PARTIE 8 — CORRECTION CONTEXTUELLE
+# PARTIE 8 - CORRECTION CONTEXTUELLE
 # =====================================================================
 
 # Groupes de mots confondables : homophones ou quasi-homophones qui
 # existent TOUS dans le dictionnaire. Un correcteur lexical ne peut donc
-# pas les détecter ; seul le contexte permet de trancher.
+# pas les detecter ; seul le contexte permet de trancher.
 CONFUSIONS = [
     {"cet", "sept"},
     {"a", "à"},
@@ -440,12 +524,12 @@ def candidats_confusion(mot, confusions=CONFUSIONS):
 
 
 def score_contextuel(modele, precedent, candidat, suivant):
-    """Score d'un candidat dans son contexte immédiat :
+    """Score d'un candidat dans son contexte immediat :
 
         score = P(candidat | precedent) x P(suivant | candidat)
 
-    On utilise les DEUX côtés du mot. Le contexte gauche seul suffit
-    rarement : c'est souvent le mot qui SUIT qui est décisif.
+    On utilise les DEUX cotes du mot. Le contexte gauche seul suffit
+    rarement : c'est souvent le mot qui SUIT qui est decisif.
     """
     gauche = modele.probabilite_bigramme(precedent, candidat)
     droite = modele.probabilite_bigramme(candidat, suivant) if suivant else 1.0
@@ -453,10 +537,11 @@ def score_contextuel(modele, precedent, candidat, suivant):
 
 
 def corriger_phrase(modele, phrase, confusions=CONFUSIONS, tracer=True):
-    """Détecte et corrige les confusions contextuelles d'une phrase.
+    """Detecte et corrige les confusions contextuelles d'une phrase.
 
-    Pour chaque mot appartenant à un groupe de confusion, évalue tous les
-    candidats dans leur contexte et retient le mieux scoré.
+    Pour chaque mot appartenant a un groupe de confusion, evalue tous les
+    candidats dans leur contexte et retient le mieux score.
+    Retourne la liste des tokens corriges.
     """
     tokens = tokeniser(phrase) if isinstance(phrase, str) else list(phrase)
     corrige = list(tokens)
@@ -488,20 +573,21 @@ def corriger_phrase(modele, phrase, confusions=CONFUSIONS, tracer=True):
         if meilleur != mot:
             corrige[i] = meilleur
             if tracer:
-                print(f"    => CORRECTION : « {mot} » remplacé par « {meilleur} »\n")
+                print(f"    => CORRECTION : « {mot} » remplace par « {meilleur} »\n")
         elif tracer:
             print(f"    => aucun changement\n")
 
     return corrige
 
+
 # =====================================================================
-# PARTIE 9 — LE PROBLÈME DES COMPTES NULS
+# PARTIE 9 - LE PROBLEME DES COMPTES NULS
 # =====================================================================
 
 def bigrammes_nuls(modele, limite=None, exclure_marqueurs=False):
-    """Retourne la liste des bigrammes (w1, w2) jamais observés.
+    """Retourne la liste des bigrammes (w1, w2) jamais observes.
 
-    On parcourt le produit cartésien V x V et on retient les couples de
+    On parcourt le produit cartesien V x V et on retient les couples de
     comptage nul. exclure_marqueurs ignore les couples impliquant <s>/</s>.
     """
     mots = [m for m in modele.vocabulaire
@@ -538,5 +624,3 @@ def matrice_bigrammes(modele, mots=None):
             c = modele.compte_bigramme(w1, w2)
             ligne += f"{c if c else '.':>7}"
         print(ligne)
-
-    

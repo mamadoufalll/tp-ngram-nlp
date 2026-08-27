@@ -456,3 +456,48 @@ def corriger_phrase(modele, phrase, confusions=CONFUSIONS, tracer=True):
             print(f"    => aucun changement\n")
 
     return corrige
+
+# =====================================================================
+# PARTIE 9 — LE PROBLÈME DES COMPTES NULS
+# =====================================================================
+
+def bigrammes_nuls(modele, limite=None, exclure_marqueurs=False):
+    """Retourne la liste des bigrammes (w1, w2) jamais observés.
+
+    On parcourt le produit cartésien V x V et on retient les couples de
+    comptage nul. exclure_marqueurs ignore les couples impliquant <s>/</s>.
+    """
+    mots = [m for m in modele.vocabulaire
+            if not (exclure_marqueurs and m in (DEBUT, FIN))]
+    nuls = [(w1, w2) for w1 in mots for w2 in mots
+            if modele.compte_bigramme(w1, w2) == 0]
+    return nuls[:limite] if limite else nuls
+
+
+def couverture_bigrammes(modele):
+    """Statistiques de couverture de la matrice des bigrammes."""
+    V = modele.V
+    possibles = V * V
+    observes = len(modele.bigrammes)
+    return {
+        "V": V,
+        "possibles": possibles,
+        "observes": observes,
+        "nuls": possibles - observes,
+        "taux_couverture": observes / possibles,
+        "hapax": sum(1 for f in modele.bigrammes.values() if f == 1),
+    }
+
+
+def matrice_bigrammes(modele, mots=None):
+    """Affiche la matrice des comptages C(w1, w2) sous forme de tableau."""
+    mots = mots or modele.vocabulaire
+    largeur = max(len(m) for m in mots) + 1
+
+    print(" " * largeur + "".join(f"{m[:6]:>7s}" for m in mots))
+    for w1 in mots:
+        ligne = f"{w1:{largeur}s}"
+        for w2 in mots:
+            c = modele.compte_bigramme(w1, w2)
+            ligne += f"{c if c else '.':>7}"
+        print(ligne)
